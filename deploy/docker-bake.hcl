@@ -3,7 +3,7 @@ variable "REGISTRY_BASE" {
 }
 
 group "default" {
-  target = "myadmin"
+  targets = ["myadmin"]
 }
 
 target "myadmin" {
