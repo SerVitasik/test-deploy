@@ -1,4 +1,3 @@
-
 locals {
   app_name = "test-deploy"
   aws_region = "us-east-1"
@@ -231,7 +230,7 @@ resource "null_resource" "sync_files_and_run" {
         --exclude '.terraform' \
         --exclude '.keys' \
         --exclude 'tfplan' \
-        . ubuntu@${aws_eip_association.eip_assoc.public_ip}:/home/ubuntu/app/deploy/
+        . ubuntu@${aws_eip_association.eip_assoc.public_ip}:/home/ubuntu/${local.app_name}/deploy/
 
       EOF
   }
@@ -245,7 +244,7 @@ resource "null_resource" "sync_files_and_run" {
       
       cat /home/ubuntu/registry-auth/registry.pure | docker login localhost:5000 -u ci-user --password-stdin
         
-      cd /home/ubuntu/app/deploy
+      cd /home/ubuntu/${local.app_name}/deploy
 
       echo "Spinning up the app"
       docker compose --progress=plain -p app -f compose.yml up -d --remove-orphans
