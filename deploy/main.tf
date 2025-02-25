@@ -206,33 +206,39 @@ resource "null_resource" "sync_files_and_run" {
 
   provisioner "local-exec" {
     command = <<-EOF
-
-      # map appserver.local to the instance (in GA we don't know the IP, so have to use this mapping)
+      echo "Debug: Checking SSH key"
+      ls -la ./.keys/
+      ssh-keygen -l -f ./.keys/id_rsa || echo "Invalid key"
+      
+      echo "Debug: Testing SSH connection"
+      ssh -v -i ./.keys/id_rsa -o StrictHostKeyChecking=no ubuntu@${aws_eip_association.eip_assoc.public_ip} echo "SSH connection successful"
+      
+      # map appserver.local to the instance
       grep -q "appserver.local" /etc/hosts || echo "${aws_eip_association.eip_assoc.public_ip} appserver.local" | sudo tee -a /etc/hosts
 
       # hosts modification may take some time to apply
       sleep 5
 
-      # generate buildx authorization
+      # Ensure docker config directory exists
+      mkdir -p ~/.docker
+
+      # Generate registry credentials
       sha256sum ./.keys/id_rsa | cut -d ' ' -f1 | tr -d '\n' > ./.keys/registry.pure
-      echo '{"auths":{"appserver.local:5000":{"auth":"'$(echo -n "ci-user:$(cat ./.keys/registry.pure)" | base64 -w 0)'"}}}' > ~/.docker/config.json
+      
+      # Login to registry explicitly
+      cat ./.keys/registry.pure | docker login appserver.local:5000 -u ci-user --password-stdin
 
       echo "Running build"
       docker buildx bake --progress=plain --push --allow=fs.read=..
 
-      # compose temporarily it is not working https://github.com/docker/compose/issues/11072#issuecomment-1848974315
-      # docker compose --progress=plain -p app -f ./compose.yml build --push
-
-      # if you will change host, pleasee add -o StrictHostKeyChecking=no
       echo "Copy files to the instance" 
-      rsync -t -avz --mkpath -e "ssh -i ./.keys/id_rsa -o StrictHostKeyChecking=no" \
+      rsync -t -avz --mkpath -e "ssh -v -i ./.keys/id_rsa -o StrictHostKeyChecking=no" \
         --delete \
         --exclude '.terraform' \
         --exclude '.keys' \
         --exclude 'tfplan' \
         . ubuntu@${aws_eip_association.eip_assoc.public_ip}:/home/ubuntu/${local.app_name}/deploy/
-
-      EOF
+    EOF
   }
 
   # Run docker compose after files have been copied
@@ -244,7 +250,7 @@ resource "null_resource" "sync_files_and_run" {
       
       cat /home/ubuntu/registry-auth/registry.pure | docker login localhost:5000 -u ci-user --password-stdin
         
-      cd /home/ubuntu/${local.app_name}/deploy
+      cd /home/ubuntu/app/deploy
 
       echo "Spinning up the app"
       docker compose --progress=plain -p app -f compose.yml up -d --remove-orphans
