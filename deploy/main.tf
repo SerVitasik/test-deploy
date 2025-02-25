@@ -1,3 +1,4 @@
+
 locals {
   app_name = "test-deploy"
   aws_region = "us-east-1"
@@ -206,39 +207,33 @@ resource "null_resource" "sync_files_and_run" {
 
   provisioner "local-exec" {
     command = <<-EOF
-      echo "Debug: Checking SSH key"
-      ls -la ./.keys/
-      ssh-keygen -l -f ./.keys/id_rsa || echo "Invalid key"
-      
-      echo "Debug: Testing SSH connection"
-      ssh -v -i ./.keys/id_rsa -o StrictHostKeyChecking=no ubuntu@${aws_eip_association.eip_assoc.public_ip} echo "SSH connection successful"
-      
-      # map appserver.local to the instance
+
+      # map appserver.local to the instance (in GA we don't know the IP, so have to use this mapping)
       grep -q "appserver.local" /etc/hosts || echo "${aws_eip_association.eip_assoc.public_ip} appserver.local" | sudo tee -a /etc/hosts
 
       # hosts modification may take some time to apply
       sleep 5
 
-      # Ensure docker config directory exists
-      mkdir -p ~/.docker
-
-      # Generate registry credentials
+      # generate buildx authorization
       sha256sum ./.keys/id_rsa | cut -d ' ' -f1 | tr -d '\n' > ./.keys/registry.pure
-      
-      # Login to registry explicitly
-      cat ./.keys/registry.pure | docker login appserver.local:5000 -u ci-user --password-stdin
+      echo '{"auths":{"appserver.local:5000":{"auth":"'$(echo -n "ci-user:$(cat ./.keys/registry.pure)" | base64 -w 0)'"}}}' > ~/.docker/config.json
 
       echo "Running build"
       docker buildx bake --progress=plain --push --allow=fs.read=..
 
+      # compose temporarily it is not working https://github.com/docker/compose/issues/11072#issuecomment-1848974315
+      # docker compose --progress=plain -p app -f ./compose.yml build --push
+
+      # if you will change host, pleasee add -o StrictHostKeyChecking=no
       echo "Copy files to the instance" 
-      rsync -t -avz --mkpath -e "ssh -v -i ./.keys/id_rsa -o StrictHostKeyChecking=no" \
+      rsync -t -avz --mkpath -e "ssh -i ./.keys/id_rsa -o StrictHostKeyChecking=no" \
         --delete \
         --exclude '.terraform' \
         --exclude '.keys' \
         --exclude 'tfplan' \
-        . ubuntu@${aws_eip_association.eip_assoc.public_ip}:/home/ubuntu/${local.app_name}/deploy/
-    EOF
+        . ubuntu@${aws_eip_association.eip_assoc.public_ip}:/home/ubuntu/app/deploy/
+
+      EOF
   }
 
   # Run docker compose after files have been copied
