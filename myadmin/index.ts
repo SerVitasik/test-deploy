@@ -40,7 +40,7 @@ export const admin = new AdminForth({
   dataSources: [
     {
       id: 'maindb',
-      url: `${process.env.DATABASE_URL}`
+      url: `sqlite://.db.sqlite`
     },
   ],
   resources: [

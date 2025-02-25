@@ -5,4 +5,4 @@ ADD package.json package-lock.json /code/
 RUN npm ci  
 ADD . /code/
 RUN --mount=type=cache,target=/tmp npx tsx bundleNow.ts
-CMD ["npm", "run", "startLive"]
+CMD ["npm", "run", "migrateLiveAndStart"]
