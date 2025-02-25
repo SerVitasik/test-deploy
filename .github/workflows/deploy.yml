@@ -51,6 +51,11 @@ jobs:
           VAULT_SSH_PRIVATE_KEY: ${{ secrets.VAULT_SSH_PRIVATE_KEY }}
           VAULT_SSH_PUBLIC_KEY: ${{ secrets.VAULT_SSH_PUBLIC_KEY }}
 
+      - name: Set SSH key permissions
+        run: |
+          chmod 600 deploy/.keys/id_rsa*
+          ssh-keygen -y -f deploy/.keys/id_rsa > deploy/.keys/id_rsa.pub
+
       - name: Setup AWS credentials
         run: |
           mkdir -p ~/.aws
@@ -66,7 +71,14 @@ jobs:
       - name: Prepare env
         run: |
           echo "" > deploy/.env.live
-
+      - name: Setup Docker auth
+        run: |
+          mkdir -p ~/.docker
+          sha256sum deploy/.keys/id_rsa | cut -d ' ' -f1 | tr -d '\n' > deploy/.keys/registry.pure
+          echo '{"auths":{"appserver.local:5000":{"auth":"'$(echo -n "ci-user:$(cat deploy/.keys/registry.pure)" | base64 -w 0)'"}}}' > ~/.docker/config.json
+      - name: Test SSH connection
+        run: |
+          ssh -i deploy/.keys/id_rsa -o StrictHostKeyChecking=no ubuntu@$(terraform -chdir=deploy output -raw instance_public_ip) 'echo "SSH connection successful"'
       - name: Terraform build
         run: |
           cd deploy
