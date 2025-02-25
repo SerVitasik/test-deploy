@@ -51,6 +51,13 @@ jobs:
           VAULT_SSH_PRIVATE_KEY: ${{ secrets.VAULT_SSH_PRIVATE_KEY }}
           VAULT_SSH_PUBLIC_KEY: ${{ secrets.VAULT_SSH_PUBLIC_KEY }}
 
+      - name: Debug SSH keys
+        run: |
+          ls -la deploy/.keys/
+          ssh-keygen -l -f deploy/.keys/id_rsa
+          # Try to connect manually to verify SSH
+          ssh -i deploy/.keys/id_rsa -o StrictHostKeyChecking=no ubuntu@44.216.15.23 echo "SSH connection successful"
+
       - name: Setup AWS credentials
         run: |
           mkdir -p ~/.aws
