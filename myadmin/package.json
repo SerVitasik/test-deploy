@@ -12,6 +12,7 @@
     "start": "npm run env -- tsx watch index.ts",
     "migrateLocal": "npm run env -- npx prisma migrate deploy",
     "makemigration": "npm run migrateLocal; npm run env -- npx --yes prisma migrate dev",
+    "migrateLiveAndStart": "npx --yes prisma migrate deploy && tsx index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {

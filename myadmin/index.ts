@@ -62,9 +62,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
   const port = 3500;
 
-  await admin.bundleNow({ hotReload: process.env.NODE_ENV === 'development' });
-  console.log('Bundling AdminForth done. For faster serving consider calling bundleNow() from a build script.');
-
+  // await admin.bundleNow({ hotReload: process.env.NODE_ENV === 'development' });
+  // console.log('Bundling AdminForth done. For faster serving consider calling bundleNow() from a build script.');
+  if (process.env.NODE_ENV === 'development') {
+    await admin.bundleNow({ hotReload: true });
+    console.log('Bundling AdminForth done');
+  }
   admin.express.serve(app)
 
   admin.discoverDatabases().then(async () => {
