@@ -1,0 +1,29 @@
+
+services:
+  traefik:
+    image: "traefik:v2.5"
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+  myadmin:
+    image: localhost:5000/myadmin:latest
+    pull_policy: always
+    restart: always
+    env_file:
+      - .env.live
+    volumes:
+      - myadmin-db:/code/db
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.myadmin.rule=PathPrefix(`/`)"
+      - "traefik.http.services.myadmin.loadbalancer.server.port=3500"
+      - "traefik.http.routers.myadmin.priority=2"
+
+volumes:
+  myadmin-db:

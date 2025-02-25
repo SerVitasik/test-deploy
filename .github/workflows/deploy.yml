@@ -1,0 +1,76 @@
+name: Deploy myadmin
+run-name: ${{ github.actor }} builds myadmin 🚀
+on: [push]
+jobs:
+  Explore-GitHub-Actions:
+    runs-on: ubuntu-latest
+
+    concurrency:
+      group: build-group
+      cancel-in-progress: false
+
+    steps:
+      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "🐧 This job is now running on a ${{ runner.os }} server"
+      - run: echo "🔎 The name of your branch is ${{ github.ref }}"
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.10.1 
+      
+      - name: Import Registry CA
+        run: |
+          mkdir -p deploy/.keys
+          echo "$VAULT_REGISTRY_CA_PEM" > deploy/.keys/ca.pem
+          echo "$VAULT_REGISTRY_CA_KEY" > deploy/.keys/ca.key
+        env:
+          VAULT_REGISTRY_CA_PEM: ${{ secrets.VAULT_REGISTRY_CA_PEM }}
+          VAULT_REGISTRY_CA_KEY: ${{ secrets.VAULT_REGISTRY_CA_KEY }}
+
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-config-inline: |
+            [registry."appserver.local:5000"]
+              ca=["deploy/.keys/ca.pem"]
+              
+          # use host network for resolving appserver.local
+          driver-opts: network=host
+
+      - name: Import registry SSH keys
+        run: |
+          mkdir -p deploy/.keys
+          echo "$VAULT_SSH_PRIVATE_KEY" > deploy/.keys/id_rsa
+          echo "$VAULT_SSH_PUBLIC_KEY" > deploy/.keys/id_rsa.pub
+          chmod 600 deploy/.keys/id_rsa*
+        env:
+          VAULT_SSH_PRIVATE_KEY: ${{ secrets.VAULT_SSH_PRIVATE_KEY }}
+          VAULT_SSH_PUBLIC_KEY: ${{ secrets.VAULT_SSH_PUBLIC_KEY }}
+
+      - name: Setup AWS credentials
+        run: |
+          mkdir -p ~/.aws
+          cat <<EOL > ~/.aws/credentials
+          [myaws]
+          aws_access_key_id=${VAULT_AWS_ACCESS_KEY_ID}
+          aws_secret_access_key=${VAULT_AWS_SECRET_ACCESS_KEY}
+          EOL
+        env:
+          VAULT_AWS_ACCESS_KEY_ID: ${{ secrets.VAULT_AWS_ACCESS_KEY_ID }}
+          VAULT_AWS_SECRET_ACCESS_KEY: ${{ secrets.VAULT_AWS_SECRET_ACCESS_KEY }}
+
+      - name: Terraform build
+        run: |
+          cd deploy
+          terraform init -reconfigure
+          # example of unlocking tf state if needed
+          # terraform force-unlock fb397548-8697-ea93-ab80-128a4f508fdf --force
+          terraform plan -out=tfplan 
+          terraform apply tfplan 
+                
+          
+      - run: echo "🍏 This job's status is ${{ job.status }}."
