@@ -66,11 +66,6 @@ jobs:
       - name: Prepare env
         run: |
           echo "" > deploy/.env.live
-      - name: Test SSH connection
-        run: |
-          cd deploy
-          IP=$(terraform output -raw instance_public_ip)
-          ssh -i .keys/id_rsa -o StrictHostKeyChecking=no ubuntu@$IP 'echo "SSH connection successful"'
       - name: Terraform build
         run: |
           cd deploy
