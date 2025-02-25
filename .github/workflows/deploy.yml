@@ -51,16 +51,6 @@ jobs:
           VAULT_SSH_PRIVATE_KEY: ${{ secrets.VAULT_SSH_PRIVATE_KEY }}
           VAULT_SSH_PUBLIC_KEY: ${{ secrets.VAULT_SSH_PUBLIC_KEY }}
 
-      - name: Debug SSH keys
-        run: |
-          ls -la deploy/.keys/
-          ssh-keygen -l -f deploy/.keys/id_rsa
-          # Print public key for verification
-          echo "Public key content:"
-          cat deploy/.keys/id_rsa.pub
-          # Try verbose SSH connection
-          ssh -v -i deploy/.keys/id_rsa -o StrictHostKeyChecking=no ubuntu@44.216.15.23 echo "SSH connection successful"
-
       - name: Setup AWS credentials
         run: |
           mkdir -p ~/.aws
@@ -76,16 +66,6 @@ jobs:
       - name: Prepare env
         run: |
           echo "" > deploy/.env.live
-
-      - name: Verify AWS Instance
-        run: |
-          cd deploy
-          # Get instance ID from terraform state
-          INSTANCE_ID=$(terraform output -raw instance_id || echo "")
-          if [ ! -z "$INSTANCE_ID" ]; then
-            # Get the public key from the instance
-            aws ec2 describe-key-pairs --key-names terraform-deploy_test-deploy-key --profile myaws
-          fi
 
       - name: Terraform build
         run: |
