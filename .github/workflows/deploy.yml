@@ -63,6 +63,10 @@ jobs:
           VAULT_AWS_ACCESS_KEY_ID: ${{ secrets.VAULT_AWS_ACCESS_KEY_ID }}
           VAULT_AWS_SECRET_ACCESS_KEY: ${{ secrets.VAULT_AWS_SECRET_ACCESS_KEY }}
 
+      - name: Prepare env
+        run: |
+          echo "" > deploy/.env.live
+
       - name: Terraform build
         run: |
           cd deploy
